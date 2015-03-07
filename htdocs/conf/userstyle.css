@@ -1,0 +1,21 @@
+
+.dTreeNode a {
+    margin-left: 3px;
+}
+
+div.dokuwiki div#dokubook_container_left {
+    left: 210px;
+}
+
+div.dokuwiki div#sidebar_left {
+    width: 200px;
+}
+
+div.dokuwiki form#dw__search input.edit {
+    width: 176px;
+}
+
+.logo {
+    display: block;
+}
+
