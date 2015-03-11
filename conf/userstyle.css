@@ -4,15 +4,15 @@
 }
 
 div.dokuwiki div#dokubook_container_left {
-    left: 210px;
+    left: 260px;
 }
 
 div.dokuwiki div#sidebar_left {
-    width: 200px;
+    width: 250px;
 }
 
 div.dokuwiki form#dw__search input.edit {
-    width: 176px;
+    width: 226px;
 }
 
 .logo {
