@@ -16,7 +16,7 @@
 $conf['title']       = 'DokuWiki';        //what to show in the title
 $conf['start']       = 'start';           //name of start page
 $conf['lang']        = 'en';              //your language
-$conf['template']    = 'dokubook';         //see lib/tpl directory
+$conf['template']    = 'dokuwiki';         //see lib/tpl directory
 $conf['tagline']     = '';                //tagline in header (if template supports it)
 $conf['sidebar']     = 'sidebar';         //name of sidebar in root namespace (if template supports it)
 $conf['license']     = 'cc-by-nc-sa';     //see conf/license.php
@@ -65,7 +65,7 @@ $conf['disableactions'] = '';            //comma separated list of actions to di
 $conf['auth_security_timeout'] = 900;    //time (seconds) auth data is considered valid, set to 0 to recheck on every page view
 $conf['securecookie'] = 1;               //never send HTTPS cookies via HTTP
 $conf['remote']      = 0;                //Enable/disable remote interfaces
-$conf['remoteuser']  = '!!not set !!';   //user/groups that have access to remote interface (comma separated)
+$conf['remoteuser']  = '!!not set!!';    //user/groups that have access to remote interface (comma separated)
 
 /* Antispam Features */
 $conf['usewordblock']= 1;                //block spam based on words? 0|1
@@ -89,14 +89,13 @@ $conf['cachetime']   = 60*60*24;         //maximum age for cachefile in seconds 
 // Set target to use when creating links - leave empty for same window
 $conf['target']['wiki']      = '';
 $conf['target']['interwiki'] = '';
-$conf['target']['extern']    = '_blank';
+$conf['target']['extern']    = '';
 $conf['target']['media']     = '';
 $conf['target']['windows']   = '';
 
 /* Media Settings */
 $conf['mediarevisions'] = 1;             //enable/disable media revisions
 $conf['refcheck']    = 1;                //check for references before deleting media files
-$conf['refshow']     = 0;                //how many references should be shown, 5 is a good value
 $conf['gdlib']       = 2;                //the GDlib version (0, 1 or 2) 2 tries to autodetect
 $conf['im_convert']  = '';               //path to ImageMagicks convert (will be used instead of GD)
 $conf['jpg_quality'] = '70';             //quality of compression when scaling jpg images (0-100)
@@ -138,7 +137,7 @@ $conf['rss_update'] = 5*60;              //Update the RSS feed every n seconds (
 $conf['rss_show_summary'] = 1;           //Add revision summary to title? 0|1
 
 /* Advanced Settings */
-$conf['updatecheck'] = 0;                //automatically check for new releases?
+$conf['updatecheck'] = 1;                //automatically check for new releases?
 $conf['userewrite']  = 0;                //this makes nice URLs: 0: off 1: .htaccess 2: internal
 $conf['useslash']    = 0;                //use slash instead of colon? only when rewrite is on
 $conf['sepchar']     = '_';              //word separator character in page names; may be a
@@ -150,7 +149,7 @@ $conf['compression'] = 'gz';             //compress old revisions: (0: off) ('gz
                                          //  bz2 generates smaller files, but needs more cpu-power
 $conf['gzip_output'] = 0;                //use gzip content encodeing for the output xhtml (if allowed by browser)
 $conf['compress']    = 1;                //Strip whitespaces and comments from Styles and JavaScript? 1|0
-$conf['cssdatauri']  = 0;                //Maximum byte size of small images to embed into CSS, won't work on IE<8
+$conf['cssdatauri']  = 512;              //Maximum byte size of small images to embed into CSS, won't work on IE<8
 $conf['send404']     = 0;                //Send a HTTP 404 status for non existing pages?
 $conf['broken_iua']  = 0;                //Platform with broken ignore_user_abort (IIS+CGI) 0|1
 $conf['xsendfile']   = 0;                //Use X-Sendfile (1 = lighttpd, 2 = standard)

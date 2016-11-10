@@ -20,6 +20,7 @@ function act_dispatch(){
     global $ID;
     global $INFO;
     global $QUERY;
+    /* @var Input $INPUT */
     global $INPUT;
     global $lang;
     global $conf;
@@ -28,6 +29,8 @@ function act_dispatch(){
 
     // give plugins an opportunity to process the action
     $evt = new Doku_Event('ACTION_ACT_PREPROCESS',$ACT);
+
+    $headers = array();
     if ($evt->advise_before()) {
 
         //sanitize $ACT
@@ -53,7 +56,7 @@ function act_dispatch(){
             }
         }
 
-        //display some infos
+        //display some info
         if($ACT == 'check'){
             check();
             $ACT = 'show';
@@ -92,14 +95,26 @@ function act_dispatch(){
             $ACT = 'login';
         }
 
-        //update user profile
-        if ($ACT == 'profile') {
-            if(!$_SERVER['REMOTE_USER']) {
+        // user profile changes
+        if (in_array($ACT, array('profile','profile_delete'))) {
+            if(!$INPUT->server->str('REMOTE_USER')) {
                 $ACT = 'login';
             } else {
-                if(updateprofile()) {
-                    msg($lang['profchanged'],1);
-                    $ACT = 'show';
+                switch ($ACT) {
+                    case 'profile' :
+                        if(updateprofile()) {
+                            msg($lang['profchanged'],1);
+                            $ACT = 'show';
+                        }
+                        break;
+                    case 'profile_delete' :
+                        if(auth_deleteprofile()){
+                            msg($lang['profdeleted'],1);
+                            $ACT = 'show';
+                        } else {
+                            $ACT = 'profile';
+                        }
+                        break;
                 }
             }
         }
@@ -131,8 +146,10 @@ function act_dispatch(){
             $ACT = act_draftdel($ACT);
 
         //draft saving on preview
-        if($ACT == 'preview')
+        if($ACT == 'preview') {
+            $headers[] = "X-XSS-Protection: 0";
             $ACT = act_draftsave($ACT);
+        }
 
         //edit
         if(in_array($ACT, array('edit', 'preview', 'recover'))) {
@@ -149,19 +166,9 @@ function act_dispatch(){
         if($ACT == 'admin'){
             // retrieve admin plugin name from $_REQUEST['page']
             if (($page = $INPUT->str('page', '', true)) != '') {
-                $pluginlist = plugin_list('admin');
-                if (in_array($page, $pluginlist)) {
-                    // attempt to load the plugin
-                    if ($plugin =& plugin_load('admin',$page) !== null){
-                        /** @var DokuWiki_Admin_Plugin $plugin */
-                        if($plugin->forAdminOnly() && !$INFO['isadmin']){
-                            // a manager tried to load a plugin that's for admins only
-                            $INPUT->remove('page');
-                            msg('For admins only',-1);
-                        }else{
-                            $plugin->handle();
-                        }
-                    }
+                /** @var $plugin DokuWiki_Admin_Plugin */
+                if ($plugin = plugin_getRequestAdminPlugin()){
+                    $plugin->handle();
                 }
             }
         }
@@ -177,7 +184,7 @@ function act_dispatch(){
     unset($evt);
 
     // when action 'show', the intial not 'show' and POST, do a redirect
-    if($ACT == 'show' && $preact != 'show' && strtolower($_SERVER['REQUEST_METHOD']) == 'post'){
+    if($ACT == 'show' && $preact != 'show' && strtolower($INPUT->server->str('REQUEST_METHOD')) == 'post'){
         act_redirect($ID,$preact);
     }
 
@@ -207,6 +214,9 @@ function act_sendheaders($headers) {
  * Sanitize the action command
  *
  * @author Andreas Gohr <andi@splitbrain.org>
+ *
+ * @param array|string $act
+ * @return string
  */
 function act_clean($act){
     // check if the action was given as array key
@@ -231,6 +241,9 @@ function act_clean($act){
  * Add all allowed commands here.
  *
  * @author Andreas Gohr <andi@splitbrain.org>
+ *
+ * @param array|string $act
+ * @return string
  */
 function act_validate($act) {
     global $conf;
@@ -247,7 +260,7 @@ function act_validate($act) {
     //disable all acl related commands if ACL is disabled
     if(!$conf['useacl'] && in_array($act,array('login','logout','register','admin',
                     'subscribe','unsubscribe','profile','revert',
-                    'resendpwd'))){
+                    'resendpwd','profile_delete'))){
         msg('Command unavailable: '.htmlspecialchars($act),-1);
         return 'show';
     }
@@ -258,7 +271,7 @@ function act_validate($act) {
     if(!in_array($act,array('login','logout','register','save','cancel','edit','draft',
                     'preview','search','show','check','index','revisions',
                     'diff','recent','backlink','admin','subscribe','revert',
-                    'unsubscribe','profile','resendpwd','recover',
+                    'unsubscribe','profile','profile_delete','resendpwd','recover',
                     'draftdel','sitemap','media')) && substr($act,0,7) != 'export_' ) {
         msg('Command unknown: '.htmlspecialchars($act),-1);
         return 'show';
@@ -270,10 +283,12 @@ function act_validate($act) {
  * Run permissionchecks
  *
  * @author Andreas Gohr <andi@splitbrain.org>
+ *
+ * @param string $act action command
+ * @return string action command
  */
 function act_permcheck($act){
     global $INFO;
-    global $conf;
 
     if(in_array($act,array('save','preview','edit','recover'))){
         if($INFO['exists']){
@@ -287,7 +302,7 @@ function act_permcheck($act){
         }else{
             $permneed = AUTH_CREATE;
         }
-    }elseif(in_array($act,array('login','search','recent','profile','index', 'sitemap'))){
+    }elseif(in_array($act,array('login','search','recent','profile','profile_delete','index', 'sitemap'))){
         $permneed = AUTH_NONE;
     }elseif($act == 'revert'){
         $permneed = AUTH_ADMIN;
@@ -316,6 +331,9 @@ function act_permcheck($act){
  * Handle 'draftdel'
  *
  * Deletes the draft for the current page and user
+ *
+ * @param string $act action command
+ * @return string action command
  */
 function act_draftdel($act){
     global $INFO;
@@ -328,6 +346,9 @@ function act_draftdel($act){
  * Saves a draft on preview
  *
  * @todo this currently duplicates code from ajax.php :-/
+ *
+ * @param string $act action command
+ * @return string action command
  */
 function act_draftsave($act){
     global $INFO;
@@ -358,6 +379,9 @@ function act_draftsave($act){
  * returns a new action.
  *
  * @author Andreas Gohr <andi@splitbrain.org>
+ *
+ * @param string $act action command
+ * @return string action command
  */
 function act_save($act){
     global $ID;
@@ -380,7 +404,7 @@ function act_save($act){
         return 'conflict';
 
     //save it
-    saveWikiText($ID,con($PRE,$TEXT,$SUF,1),$SUM,$INPUT->bool('minor')); //use pretty mode for con
+    saveWikiText($ID,con($PRE,$TEXT,$SUF,true),$SUM,$INPUT->bool('minor')); //use pretty mode for con
     //unlock it
     unlock($ID);
 
@@ -396,11 +420,16 @@ function act_save($act){
  * Revert to a certain revision
  *
  * @author Andreas Gohr <andi@splitbrain.org>
+ *
+ * @param string $act action command
+ * @return string action command
  */
 function act_revert($act){
     global $ID;
     global $REV;
     global $lang;
+    /* @var Input $INPUT */
+    global $INPUT;
     // FIXME $INFO['writable'] currently refers to the attic version
     // global $INFO;
     // if (!$INFO['writable']) {
@@ -432,7 +461,7 @@ function act_revert($act){
     session_write_close();
 
     // when done, show current page
-    $_SERVER['REQUEST_METHOD'] = 'post'; //should force a redirect
+    $INPUT->server->set('REQUEST_METHOD','post'); //should force a redirect
     $REV = '';
     return 'show';
 }
@@ -441,6 +470,9 @@ function act_revert($act){
  * Do a redirect after receiving post data
  *
  * Tries to add the section id as hash mark after section editing
+ *
+ * @param string $id page id
+ * @param string $preact action command before redirect
  */
 function act_redirect($id,$preact){
     global $PRE;
@@ -462,7 +494,7 @@ function act_redirect($id,$preact){
 /**
  * Execute the redirect
  *
- * @param array $opts id and fragment for the redirect
+ * @param array $opts id and fragment for the redirect and the preact
  */
 function act_redirect_execute($opts){
     $go = wl($opts['id'],'',true);
@@ -476,21 +508,27 @@ function act_redirect_execute($opts){
  * Handle 'login', 'logout'
  *
  * @author Andreas Gohr <andi@splitbrain.org>
+ *
+ * @param string $act action command
+ * @return string action command
  */
 function act_auth($act){
     global $ID;
     global $INFO;
+    /* @var Input $INPUT */
+    global $INPUT;
 
     //already logged in?
-    if(isset($_SERVER['REMOTE_USER']) && $act=='login'){
+    if($INPUT->server->has('REMOTE_USER') && $act=='login'){
         return 'show';
     }
 
     //handle logout
     if($act=='logout'){
         $lockedby = checklock($ID); //page still locked?
-        if($lockedby == $_SERVER['REMOTE_USER'])
+        if($lockedby == $INPUT->server->str('REMOTE_USER')){
             unlock($ID); //try to unlock
+        }
 
         // do the logout stuff
         auth_logoff();
@@ -508,6 +546,9 @@ function act_auth($act){
  * Handle 'edit', 'preview', 'recover'
  *
  * @author Andreas Gohr <andi@splitbrain.org>
+ *
+ * @param string $act action command
+ * @return string action command
  */
 function act_edit($act){
     global $ID;
@@ -572,6 +613,9 @@ function act_edit($act){
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  * @author Michael Klier <chi@chimeric.de>
+ *
+ * @param string $act action command
+ * @return string action command
  */
 function act_export($act){
     global $ID;
@@ -581,7 +625,6 @@ function act_export($act){
 
     $pre = '';
     $post = '';
-    $output = '';
     $headers = array();
 
     // search engines: never cache exported docs! (Google only currently)
@@ -625,7 +668,7 @@ function act_export($act){
             $output = p_wiki_xhtml($ID,$REV,false);
             break;
         default:
-            $output = p_cached_output(wikiFN($ID,$REV), $mode);
+            $output = p_cached_output(wikiFN($ID,$REV), $mode, $ID);
             $headers = p_get_metadata($ID,"format $mode");
             break;
     }
@@ -653,6 +696,8 @@ function act_export($act){
  * Handle sitemap delivery
  *
  * @author Michael Hamann <michael@content-space.de>
+ *
+ * @param string $act action command
  */
 function act_sitemap($act) {
     global $conf;
@@ -684,7 +729,7 @@ function act_sitemap($act) {
 
         // Send file
         //use x-sendfile header to pass the delivery to compatible webservers
-        if (http_sendfile($sitemap)) exit;
+        http_sendfile($sitemap);
 
         readfile($sitemap);
         exit;
@@ -701,15 +746,20 @@ function act_sitemap($act) {
  * Throws exception on error.
  *
  * @author Adrian Lang <lang@cosmocode.de>
+ *
+ * @param string $act action command
+ * @return string action command
+ * @throws Exception if (un)subscribing fails
  */
 function act_subscription($act){
     global $lang;
     global $INFO;
     global $ID;
+    /* @var Input $INPUT */
     global $INPUT;
 
     // subcriptions work for logged in users only
-    if(!$_SERVER['REMOTE_USER']) return 'show';
+    if(!$INPUT->server->str('REMOTE_USER')) return 'show';
 
     // get and preprocess data.
     $params = array();
@@ -720,7 +770,7 @@ function act_subscription($act){
     }
 
     // any action given? if not just return and show the subscription page
-    if(!$params['action'] || !checkSecurityToken()) return $act;
+    if(empty($params['action']) || !checkSecurityToken()) return $act;
 
     // Handle POST data, may throw exception.
     trigger_event('ACTION_HANDLE_SUBSCRIBE', $params, 'subscription_handle_post');
@@ -732,9 +782,9 @@ function act_subscription($act){
     // Perform action.
     $sub = new Subscription();
     if($action == 'unsubscribe'){
-        $ok = $sub->remove($target, $_SERVER['REMOTE_USER'], $style);
+        $ok = $sub->remove($target, $INPUT->server->str('REMOTE_USER'), $style);
     }else{
-        $ok = $sub->add($target, $_SERVER['REMOTE_USER'], $style);
+        $ok = $sub->add($target, $INPUT->server->str('REMOTE_USER'), $style);
     }
 
     if($ok) {
@@ -759,10 +809,15 @@ function act_subscription($act){
  * default action for the event ACTION_HANDLE_SUBSCRIBE.
  *
  * @author Adrian Lang <lang@cosmocode.de>
+ *
+ * @param array &$params the parameters: target, style and action
+ * @throws Exception
  */
 function subscription_handle_post(&$params) {
     global $INFO;
     global $lang;
+    /* @var Input $INPUT */
+    global $INPUT;
 
     // Get and validate parameters.
     if (!isset($params['target'])) {
@@ -793,7 +848,7 @@ function subscription_handle_post(&$params) {
         }
         if ($is === false) {
             throw new Exception(sprintf($lang['subscr_not_subscribed'],
-                                        $_SERVER['REMOTE_USER'],
+                                        $INPUT->server->str('REMOTE_USER'),
                                         prettyprint_id($target)));
         }
         // subscription_set deletes a subscription if style = null.

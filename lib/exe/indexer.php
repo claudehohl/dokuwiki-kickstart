@@ -31,12 +31,12 @@ else header('Content-Type: text/plain');
 $tmp = array(); // No event data
 $evt = new Doku_Event('INDEXER_TASKS_RUN', $tmp);
 if ($evt->advise_before()) {
-  runIndexer() or
-  runSitemapper() or
-  sendDigest() or
-  runTrimRecentChanges() or
-  runTrimRecentChanges(true) or
-  $evt->advise_after();
+    runIndexer() or
+    runSitemapper() or
+    sendDigest() or
+    runTrimRecentChanges() or
+    runTrimRecentChanges(true) or
+    $evt->advise_after();
 }
 
 if(!$output) {
@@ -51,8 +51,9 @@ exit;
 /**
  * Trims the recent changes cache (or imports the old changelog) as needed.
  *
- * @param media_changes If the media changelog shall be trimmed instead of
- * the page changelog
+ * @param bool $media_changes If the media changelog shall be trimmed instead of
+ *                              the page changelog
+ * @return bool
  *
  * @author Ben Coburn <btcoburn@silicodon.net>
  */
@@ -67,9 +68,9 @@ function runTrimRecentChanges($media_changes = false) {
     // Trims the recent changes cache to the last $conf['changes_days'] recent
     // changes or $conf['recent'] items, which ever is larger.
     // The trimming is only done once a day.
-    if (@file_exists($fn) &&
+    if (file_exists($fn) &&
         (@filemtime($fn.'.trimmed')+86400)<time() &&
-        !@file_exists($fn.'_tmp')) {
+        !file_exists($fn.'_tmp')) {
             @touch($fn.'.trimmed');
             io_lock($fn);
             $lines = file($fn);
@@ -83,15 +84,15 @@ function runTrimRecentChanges($media_changes = false) {
             io_saveFile($fn.'_tmp', '');          // presave tmp as 2nd lock
             $trim_time = time() - $conf['recent_days']*86400;
             $out_lines = array();
-
+            $old_lines = array();
             for ($i=0; $i<count($lines); $i++) {
-              $log = parseChangelogLine($lines[$i]);
-              if ($log === false) continue;                      // discard junk
-              if ($log['date'] < $trim_time) {
-                $old_lines[$log['date'].".$i"] = $lines[$i];     // keep old lines for now (append .$i to prevent key collisions)
-              } else {
-                $out_lines[$log['date'].".$i"] = $lines[$i];     // definitely keep these lines
-              }
+                $log = parseChangelogLine($lines[$i]);
+                if ($log === false) continue;                      // discard junk
+                if ($log['date'] < $trim_time) {
+                    $old_lines[$log['date'].".$i"] = $lines[$i];     // keep old lines for now (append .$i to prevent key collisions)
+                } else {
+                    $out_lines[$log['date'].".$i"] = $lines[$i];     // definitely keep these lines
+                }
             }
 
             if (count($lines)==count($out_lines)) {
@@ -198,11 +199,11 @@ function sendGIF(){
     header('Content-Length: '.strlen($img));
     header('Connection: Close');
     print $img;
-    flush();
+    tpl_flush();
     // Browser should drop connection after this
     // Thinks it's got the whole image
 }
 
 //Setup VIM: ex: et ts=4 :
 // No trailing PHP closing tag - no output please!
-// See Note at http://www.php.net/manual/en/language.basic-syntax.instruction-separation.php
+// See Note at http://php.net/manual/en/language.basic-syntax.instruction-separation.php
