@@ -89,7 +89,7 @@ $conf['cachetime']   = 60*60*24;         //maximum age for cachefile in seconds 
 // Set target to use when creating links - leave empty for same window
 $conf['target']['wiki']      = '';
 $conf['target']['interwiki'] = '';
-$conf['target']['extern']    = '';
+$conf['target']['extern']    = '_blank';
 $conf['target']['media']     = '';
 $conf['target']['windows']   = '';
 
