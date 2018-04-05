@@ -40,15 +40,19 @@ class syntax_plugin_indexmenu_tag extends DokuWiki_Syntax_Plugin {
     /**
      * Handle the match
      */
-    function handle($match, $state, $pos, &$handler) {
+    function handle($match, $state, $pos, Doku_Handler $handler) {
         $match = substr($match, 14, -2);
+        $match = str_replace("\xE2\x80\x8B", "", $match);
         return array($match);
     }
 
     /**
      * Render output
      */
-    function render($mode, &$renderer, $data) {
-        if(is_numeric($data[0])) $renderer->meta['indexmenu_n'] = $data[0];
+    function render($mode, Doku_Renderer $renderer, $data) {
+        if($mode == 'metadata') {
+            /** @var Doku_Renderer_metadata $renderer */
+            if(is_numeric($data[0])) $renderer->meta['indexmenu_n'] = $data[0];
+        }
     }
 }
