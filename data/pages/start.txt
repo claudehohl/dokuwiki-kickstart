@@ -3,7 +3,4 @@
 This is a wiki.
 
 Login with //admin/admin//.
-===== Create a new page =====
-
-{{NEWPAGE}}
 
